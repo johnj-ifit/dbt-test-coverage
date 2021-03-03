@@ -4,6 +4,7 @@ import yaml
 import os
 import colorama
 from colorama import Fore, Style
+import logging
 
 colorama.init()
 
@@ -13,13 +14,13 @@ def load_yaml(stream):
         return yaml.safe_load(stream)
     except yaml.YAMLError as exc:
         # logger.error(exc)
-        print(exc)
+        logging.info(exc)
 
 
 def load_file_contents(path, strip=True):
     if not os.path.exists(path):
         # logger.error(path + " not found")
-        print(path + " not found")
+        logging.info(path + " not found")
 
     with open(path, "rb") as handle:
         to_return = handle.read().decode("utf-8")
@@ -105,7 +106,7 @@ def get_sources(schema):
                 # If yml sources has test
                 if source_result[5] == 1:
                     tested = "True"
-                    print(
+                    logging.debug(
                         f" Source: {source_result[0]: <{source_col_width}}"
                         f" Model: {source_result[4]: <{model_col_width}}"
                         f" Docs: "
@@ -121,7 +122,7 @@ def get_sources(schema):
                 # If yml sources doesn't have test
                 else:
                     tested = "False"
-                    print(
+                    logging.debug(
                         f" Source: {source_result[0]: <{source_col_width}}"
                         f" Model: {source_result[4]: <{model_col_width}}"
                         f" Docs: "
@@ -134,18 +135,18 @@ def get_sources(schema):
                         + Style.RESET_ALL
                         + f" Source Table: {source_result[1]}.{source_result[2]}.{source_result[3]: <{model_col_width}}"
                     )
-        print(
+        logging.debug(
             f" Sources: {source_results_agg[0]: <{source_agg_col_width}}"
             f" Docs: {(source_results_agg[0])} (100%) "
             f" Tests: {(source_results_agg[1])} ({source_results_agg[2]}%)"
         )
-        print(" ")
+        logging.debug(" ")
 
     except:
         pass
 
 
-def compare_files(sql_models, yml_models, unique_sql_folders):
+def compare_files(sql_models, yml_models, unique_sql_folders, doc_thresh, test_thresh):
     models_agg = 0
     test_agg = 0
     docs_agg = 0
@@ -171,7 +172,7 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
                         tested = "True"
                         test += 1
                         test_agg += 1
-                        print(
+                        logging.debug(
                             f" Folder: {sql_folder: <{folder_col_width}}"
                             f" Model: {item: <{model_col_width}}"
                             f" Docs: "
@@ -186,7 +187,7 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
                     # If yml models exists but doesn't have test
                     else:
                         tested = "False"
-                        print(
+                        logging.debug(
                             f" Folder: {sql_folder: <{folder_col_width}}"
                             f" Model: {item: <{model_col_width}}"
                             f" Docs: "
@@ -205,7 +206,7 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
                 else:
                     if not yml_models.get(item):
                         tested = "False"
-                        print(
+                        logging.debug(
                             f" Folder: {sql_folder: <{folder_col_width}}"
                             f" Model: {item: <{model_col_width}}"
                             f" Docs: "
@@ -218,23 +219,20 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
                             + Style.RESET_ALL
                         )
         if models:
-            print(
+            logging.debug(
                 f" Models: {models: <{model_agg_col_width}}"
                 f" Docs: {docs} ({round((docs / models) * 100)}%) "
                 f" Tests: {test} ({round((test / models) * 100)}%)"
             )
         else:
-            print("No existing models in path")
-        print(" ")
+            logging.debug("No existing models in path")
+        logging.debug(" ")
 
-    print(f" TOTAL\n\n")
+    logging.debug(f" TOTAL\n\n")
     docs_perc = round((docs_agg / models_agg) * 100)
     test_perc = round((test_agg / models_agg) * 100)
 
-    docs_minimum_needed = 80
-    test_minimum_needed = 80
-
-    print(
+    logging.info(
         f" Models: {models_agg: <{model_agg_col_width}}"
         f" Docs: {docs_agg} ({docs_perc}%) "
         f" Tests: {test_agg} ({test_perc}%)"
@@ -242,24 +240,23 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
     )
 
     error_flag = False
-    if docs_perc < docs_minimum_needed:
-        print(
+    if docs_perc < doc_thresh:
+        logging.info(
             f" Documentation not meeting minimum coverage:"
-            f" Minimum needed: ({docs_minimum_needed}%)"
+            f" Minimum needed: ({doc_thresh}%)"
         )
         error_flag = True
-    if test_perc < test_minimum_needed:
-        print(
+    if test_perc < test_thresh:
+        logging.info(
             f" Tests not meeting minimum coverage:"
-            f" Minimum needed: ({test_minimum_needed}%)"
+            f" Minimum needed: ({test_thresh}%)"
         )
         error_flag = True
 
-    if error_flag:
+    if error_flag and logging.root.level == logging.INFO:
         sys.exit(1)
-    
 
-def test_coverage(path, recursive=True):
+def test_coverage(path, recursive=True, doc_thresh=0, test_thresh=0):
     if recursive:
         schema_path = f"{path}/**/*.yml"
         sql_path = f"{path}/**/*.sql"
@@ -284,7 +281,7 @@ def test_coverage(path, recursive=True):
         unique_sql_folders = list(set(sql_folders))
 
     if not ymls:
-        print(f"No schema files found in: {path}")
+        logging.info(f"No schema files found in: {path}")
         return
 
     for yml in ymls_source:
@@ -308,9 +305,9 @@ def test_coverage(path, recursive=True):
             pass
 
     try:
-        compare_files(sql_models, yml_models, unique_sql_folders)
+        compare_files(sql_models, yml_models, unique_sql_folders, doc_thresh, test_thresh)
     except SystemExit:
         raise
     except:
-        print("Failed to compare files")
+        logging.info("Failed to compare files")
 
