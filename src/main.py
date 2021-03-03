@@ -22,8 +22,16 @@ def main():
         default=0,
         type=float
     ) 
+    parser.add_argument(
+        "--dir",
+        help="Directory to run against",
+        default='.',
+        type=str
+    ) 
 
     args = parser.parse_args()
+
+    os.chdir(args.dir)
 
     if args.recursive:
         recursive = args.recursive
