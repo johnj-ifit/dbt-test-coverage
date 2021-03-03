@@ -1,3 +1,4 @@
+import sys
 import glob
 import yaml
 import os
@@ -226,14 +227,37 @@ def compare_files(sql_models, yml_models, unique_sql_folders):
             print("No existing models in path")
         print(" ")
 
-    print(f" TOTAL")
+    print(f" TOTAL\n\n")
+    docs_perc = round((docs_agg / models_agg) * 100)
+    test_perc = round((test_agg / models_agg) * 100)
+
+    docs_minimum_needed = 80
+    test_minimum_needed = 80
+
     print(
         f" Models: {models_agg: <{model_agg_col_width}}"
-        f" Docs: {docs_agg} ({round((docs_agg / models_agg) * 100)}%) "
-        f" Tests: {test_agg} ({round((test_agg / models_agg) * 100)}%)"
+        f" Docs: {docs_agg} ({docs_perc}%) "
+        f" Tests: {test_agg} ({test_perc}%)"
         f""
     )
 
+    error_flag = False
+    if docs_perc < docs_minimum_needed:
+        print(
+            f" Documentation not meeting minimum coverage:"
+            f" Minimum needed: ({docs_minimum_needed}%)"
+        )
+        error_flag = True
+    if test_perc < test_minimum_needed:
+        print(
+            f" Tests not meeting minimum coverage:"
+            f" Minimum needed: ({test_minimum_needed}%)"
+        )
+        error_flag = True
+
+    if error_flag:
+        sys.exit(1)
+    
 
 def test_coverage(path, recursive=True):
     if recursive:
@@ -285,7 +309,8 @@ def test_coverage(path, recursive=True):
 
     try:
         compare_files(sql_models, yml_models, unique_sql_folders)
-
+    except SystemExit:
+        raise
     except:
         print("Failed to compare files")
 
